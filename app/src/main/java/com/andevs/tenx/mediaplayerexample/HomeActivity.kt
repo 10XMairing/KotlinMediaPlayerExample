@@ -7,14 +7,15 @@ import android.os.Build
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
 import android.support.v4.app.ActivityCompat
 import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
 import android.util.Log
 import android.view.View
+import android.widget.SeekBar
 import kotlinx.android.synthetic.main.activity_home.*
 import java.io.File
-import java.util.jar.Manifest
+import java.util.*
 
 class HomeActivity : AppCompatActivity() {
 
@@ -24,6 +25,9 @@ class HomeActivity : AppCompatActivity() {
     var songs : ArrayList<HashMap<String, String>> = ArrayList()
     var mplayer : MediaPlayer ? = null
     var recentSong = -1
+    lateinit var  handler : Handler
+    lateinit var  mRunnable : Runnable
+
 
 
 
@@ -40,6 +44,7 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
+        handler = Handler()
 
         val extStorage = Environment.getExternalStorageDirectory()
         val dir = File(extStorage.absolutePath + "/Music")
@@ -67,11 +72,12 @@ class HomeActivity : AppCompatActivity() {
                     prepare()
                     start()
                     }
+                    playCycle()
                     recentSong = position
+
+
                  }
             }
-
-
 
 
             adapter = SongAdapter(this,songs, listener)
@@ -79,31 +85,45 @@ class HomeActivity : AppCompatActivity() {
             recycler_songs.adapter = adapter
 
 
-            btn_stop.setOnClickListener{
+        seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+            override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
+               if(b){
+                   Log.d("TEST", "seeking to position : $i")
+                   mplayer?.seekTo(i)
+               }
+
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {
+                // Do something
+
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                // Do something
+
+            }
+        })
+
+
+
+        
+
+            img_stop.setOnClickListener{
                stopAndRelease()
             }
 
-            btn_pause.setOnClickListener{
-                mplayer?.pause()
+            img_pause.setOnClickListener{
+                pauseSong()
+
 
             }
-        btn_play.setOnClickListener{
-            if(mplayer == null){
-                if(songs.size != 0){
-                    var pos = 0
-                    if(recentSong != -1){
-                        pos = recentSong
-                    }
-                    mplayer = MediaPlayer().apply {
-                        setDataSource(applicationContext, Uri.parse(songs[pos]["file_path"]))
-                        prepare()
-                        start()
-                    }
+            img_play.setOnClickListener{
+                playSong()
+                playCycle()
 
-                }
-            }else{
-             mplayer?.start()
-            }
+
         }
 
 
@@ -111,14 +131,55 @@ class HomeActivity : AppCompatActivity() {
 
     fun stopAndRelease(){
        if(mplayer != null){
+           seekbar.progress = 0
+           handler.removeCallbacks(mRunnable)
            mplayer?.stop()
            mplayer?.release()
            mplayer = null
        }
     }
 
+    fun playCycle(){
+        seekbar.max = mplayer!!.duration
+        if(mplayer!!.isPlaying){
+              mRunnable =   Runnable {
+                  val currentPos = mplayer!!.currentPosition
+                  seekbar.progress = currentPos
+                  handler.postDelayed(mRunnable, 1000)
+                  Log.d("TEST", ""+currentPos)
+                }
+            handler.postDelayed(mRunnable, 1000)
+
+        }
+    }
+
+    fun playSong(){
+        if(mplayer == null){
+            if(songs.size != 0){
+                var pos = 0
+                if(recentSong != -1){
+                    pos = recentSong
+                }
+                mplayer = MediaPlayer().apply {
+                    setDataSource(applicationContext, Uri.parse(songs[pos]["file_path"]))
+                    prepare()
+                    start()
+                }
+
+            }
+        }else{
+            mplayer?.start()
+        }
+    }
+
+    fun pauseSong(){
+        mplayer?.pause()
+        handler.removeCallbacks(mRunnable)
+    }
+
 
 }
+
 
 
 
